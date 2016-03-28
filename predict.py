@@ -1,5 +1,5 @@
 # experiment script.
-# prune conv1.
+# do prediction.
 import matplotlib
 matplotlib.use('Agg')
 import caffe
