@@ -1,3 +1,4 @@
+import os
 import matplotlib
 import matplotlib.pyplot as plt
 import dill as pickle
@@ -11,6 +12,9 @@ import theano
 import theano.tensor as T
 from theano.tensor.signal.downsample import max_pool_2d
 from optimizers import Adam
+import lmdb
+import caffe.proto.caffe_pb2
+from caffe.io import datum_to_array
 
 
 DATA_PATH = '../data/imagenet'
@@ -26,28 +30,7 @@ mean_arr = np.array( caffe.io.blobproto_to_array(blob) )[0]
 
 sign = lambda x: np.sign(np.maximum(0., x)).astype(np.float32)
 
-(ih, iw) = (256, 256)
 (th, tw) = (227, 227)
-
-train_list = []
-train_label = []
-with open(DATA_PATH + '/train_list.txt', 'r') as f:
-    lines = f.readlines()
-    for line in lines:
-        line = line.replace('\n', '').split(' ')
-        train_list.append(line[0])
-        train_label.append(int(line[1]))
-
-
-test_list = []
-test_label = []
-with open(DATA_PATH + '/test_list.txt', 'r') as f:
-    lines = f.readlines()
-    for line in lines:
-        line = line.replace('\n', '').split(' ')
-        test_list.append(line[0])
-        test_label.append(int(line[1]))
-
 
 def preprocess(img):
     img = np.array(img, dtype=np.float32) # convert to single.
@@ -68,26 +51,45 @@ def preprocess(img):
     (cth, ctw) = (int(th / 2), int(tw / 2))
     img = img[:, ch-cth:ch-cth+th, cw-ctw:cw-ctw+tw]
     #img = np.transpose(img, (1, 2, 0))
-
-    ## only crop.
-    #img = np.array([img[:, :, 0], img[:, :, 1], img[:, :, 2]])
-    #(h, w) = img.shape[1:]
-    #(ch, cw) = (int(h / 2), int(w / 2))
-    #(cth, ctw) = (int(ih / 2), int(iw / 2))
-    #img = img[:, ch-cth:ch-cth+ih, cw-ctw:cw-ctw+iw]
-    #img = img - mean_arr # substract mean.
-    #img = np.transpose(img, (1, 2, 0))
-    #img = resize_image(img, (th, tw))
-    #img = np.transpose(img, (2, 0, 1))
     return img
+
+
+def load_lmdb(path):
+    '''
+    given the path to imdb data. return (images, labels) pair.
+    all data are read in memory for fast processing.
+    not feasible for large datasets.
+    '''
+    lmdb_env = lmdb.open(path)
+    lmdb_txn = lmdb_env.begin()
+    lmdb_cursor = lmdb_txn.cursor()
+    datum = caffe.proto.caffe_pb2.Datum()
+    data_list = []
+    data_label = []
+    for key, value in lmdb_cursor:
+        datum.ParseFromString(value)
+        img = caffe.io.datum_to_array(datum).astype(np.float32)
+        img = preprocess(img)
+        data_label.append(datum.label)
+        data_list.append(img)
+    return (data_list, data_label)
+
+
+if not os.environ.get('SKIP_TRAINING_DATA'):
+    with Timer('loading training data'):
+        (train_list, train_label) = load_lmdb(DATA_PATH + '/train10.lmdb')
+
+
+if not os.environ.get('SKIP_TEST_DATA'):
+    with Timer('loading test data'):
+        (test_list, test_label) = load_lmdb(DATA_PATH + '/test10.lmdb')
+        print test_list[0]
 
 
 def sample_minibatch(train_list, batch_size):
     minibatch_list = choice(train_list, batch_size)
     im_input = np.zeros((batch_size, 3, th, tw))
-    for (pi, img_path) in enumerate(minibatch_list):
-        img = Image.open(DATA_PATH + '/' + img_path)
-        img = preprocess(img)
+    for (pi, img) in enumerate(minibatch_list):
         im_input[pi, :, :, :] = img
     return im_input
 
