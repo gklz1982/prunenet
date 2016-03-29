@@ -7,7 +7,7 @@ import caffe.proto.caffe_pb2
 from caffe.io import datum_to_array
 
 batch_size = 32
-im_input = np.zeros((batch_size, 3, th, tw))
+im_input = np.zeros((batch_size, 3, th, tw), dtype=np.float32)
 
 # load original model.
 net = caffe.Net(MODEL_FILE, WEIGHTS_FILE)

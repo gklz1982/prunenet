@@ -51,5 +51,5 @@ class Timer(object):
 def choice(objs, size, replace=True, p=None):
     all_inds = range(len(objs))
     inds = npr.choice(all_inds, size=size, replace=replace, p=p)
-    return [objs[ind] for ind in inds]
+    return [objs[int(ind)] for ind in inds]
 

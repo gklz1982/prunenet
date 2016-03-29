@@ -29,6 +29,7 @@ mean_arr = np.array( caffe.io.blobproto_to_array(blob) )[0]
 
 
 sign = lambda x: np.sign(np.maximum(0., x)).astype(np.float32)
+sigmoid = lambda x: 1. / (1 + np.exp(-x))
 
 (th, tw) = (227, 227)
 
@@ -107,7 +108,7 @@ if not os.environ.get('SKIP_TEST_DATA'):
 
 
 def sample_minibatch(train_set, batch_size):
-    minibatch_list = choice(train_list, batch_size)
+    minibatch_list = choice(train_set, batch_size)
     im_input = np.zeros((batch_size, 3, th, tw))
     for (pi, (img, label)) in enumerate(minibatch_list):
         im_input[pi, :, :, :] = img

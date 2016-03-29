@@ -16,10 +16,11 @@ from optimizers import Adam
 from common import *
 
 batch_size = 32
+RESULT_NAME = 'conv1.model'
 
 npr.seed(0)
 
-im_input = sample_minibatch(train_list, batch_size).astype(np.float32)
+im_input = sample_minibatch(train_set, batch_size).astype(np.float32)
 
 net = caffe.Net(MODEL_FILE, WEIGHTS_FILE)
 net.set_mode_gpu()
@@ -70,7 +71,8 @@ with Timer('create tensor network'):
     print 'target shape', im_target.shape[2], im_target.shape[3]
     conv_out = conv_out[:, :, :im_target.shape[2], :im_target.shape[3]]
 
-    conv = theano.function([inputs], conv_out)
+    with Timer('compiling fprop function'):
+        conv = theano.function([inputs], conv_out)
 
     result = conv(im_input)
 
@@ -92,9 +94,10 @@ with Timer('create tensor network'):
 
     updates = Adam(loss, [W, b], alpha=lr)
 
-    bprop = theano.function(inputs=[inputs, targets], outputs=loss, updates=updates)
+    with Timer('compiling bprop function'):
+        bprop = theano.function(inputs=[inputs, targets], outputs=loss, updates=updates)
 
-    num_iter = 40
+    num_iter = 4000
 
 
     sparsity_history = []
@@ -102,44 +105,51 @@ with Timer('create tensor network'):
 
 
     for it in range(num_iter):
-        im_input = sample_minibatch(train_list, batch_size).astype(np.float32)
-        net.blobs['data'].data[:] = im_input
-        result = net.forward()['prob']
-        im_target = net.blobs['conv1'].data
-        im_target = sign(im_target)
+        print '------------------'
+        print 'iter', it
+        with Timer('sample minibatch'):
+            im_input = sample_minibatch(train_set, batch_size).astype(np.float32)
 
-        loss = bprop(im_input, im_target[:, :, :, :])
+        with Timer('backpropagation'):
+            net.blobs['data'].data[:] = im_input
+            result = net.forward()['prob']
+            im_target = net.blobs['conv1'].data
+            im_target = sign(im_target)
 
-        print 'iter', it, 'loss', loss / np.prod(result.shape)
+            loss = bprop(im_input, im_target[:, :, :, :])
 
-        if it % 100 == 0:
-            target = conv(im_input)
-            print 'target', target[0, 0, :, :]
-            print 'im_target', im_target[0, 0, :, :]
+            print 'loss', loss / np.prod(result.shape)
 
-
-            stats_sparsity = sparsity(np.maximum(0, target))
-            print 'sparsity', stats_sparsity
-            stats_fn = np.sum(sign(im_target) * (1 - sign(target))) / float(np.prod(im_target.shape))
-            print 'false negative', stats_fn
-            print
-            stats_fp = np.sum(sign(1 - im_target) * (sign(target))) / float(np.prod(im_target.shape))
-            print 'false negative', stats_fn
-
-            sparsity_history.append(stats_sparsity)
-            fp_history.append(stats_fn)
+        with Timer('test on validation set'):
+            if it % 100 == 0:
+                target = conv(im_input)
+                print 'target', target[0, 0, :, :]
+                print 'im_target', im_target[0, 0, :, :]
 
 
-with open('conv1.model', 'w') as f:
-    pickle.dump({
-        'conv': conv,
-        'bprop': bprop,
-        'W': W.get_value(),
-        'b': b.get_value(),
-        'trueW': net.params['conv1'][0].data,
-        'sparsity': sparsity_history,
-        'fn': fp_history
-    }, f)
+                stats_sparsity = sparsity(np.maximum(0, target))
+                print 'sparsity', stats_sparsity
+                stats_fn = np.sum(sign(im_target) * (1 - sign(target))) / float(np.prod(im_target.shape))
+                print 'false negative', stats_fn
+                print
+                stats_fp = np.sum(sign(1 - im_target) * (sign(target))) / float(np.prod(im_target.shape))
+                print 'false negative', stats_fn
+
+                sparsity_history.append(stats_sparsity)
+                fp_history.append(stats_fn)
+
+
+with open(RESULT_NAME, 'w') as f:
+    with Timer('dumping model to %s' % RESULT_NAME):
+        pickle.dump({
+            'conv': conv,
+            'bprop': bprop,
+            'W': W.get_value(),
+            'b': b.get_value(),
+            'trueW': net.params['conv1'][0].data,
+            'sparsity': sparsity_history,
+            'fn': fp_history
+        }, f)
 
 
 
