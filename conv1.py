@@ -94,7 +94,7 @@ with Timer('create tensor network'):
 
     bprop = theano.function(inputs=[inputs, targets], outputs=loss, updates=updates)
 
-    num_iter = 400
+    num_iter = 40
 
 
     sparsity_history = []
@@ -135,6 +135,7 @@ with open('conv1.model', 'w') as f:
         'conv': conv,
         'bprop': bprop,
         'W': W.get_value(),
+        'b': b.get_value(),
         'trueW': net.params['conv1'][0].data,
         'sparsity': sparsity_history,
         'fn': fp_history

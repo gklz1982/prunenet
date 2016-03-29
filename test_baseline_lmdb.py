@@ -17,21 +17,23 @@ net.blobs['data'].reshape(*im_input.shape)
 acc = 0
 total = 0
 
-data_list = test_list
-data_label = test_label
+# test accuracy.
+dataset = test_set
+labels = [0] * len(dataset)
 
-for di_offset in range(0, len(data_list), batch_size):
-    print di_offset, len(data_list)
-    for di in range(di_offset, min(di_offset + batch_size, len(data_list))):
-        img = data_list[di]
+for di_offset in range(0, len(dataset), batch_size):
+    print di_offset, len(dataset)
+    for di in range(di_offset, min(di_offset + batch_size, len(dataset))):
+        (img, label) = dataset[di]
         im_input[di - di_offset, :, :, :] = img
+        labels[di] = label
 
     net.blobs['data'].data[:] = im_input
     result = net.forward()['prob']
     label = np.argmax(result, axis=1)
 
-    for di in range(di_offset, min(di_offset + batch_size, len(data_list))):
-        gt_label = data_label[di]
+    for di in range(di_offset, min(di_offset + batch_size, len(dataset))):
+        gt_label = labels[di]
         if int(gt_label) == int(label[di - di_offset]):
             acc += 1
         total += 1

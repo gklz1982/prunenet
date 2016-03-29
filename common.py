@@ -32,6 +32,7 @@ sign = lambda x: np.sign(np.maximum(0., x)).astype(np.float32)
 
 (th, tw) = (227, 227)
 
+
 def preprocess(img):
     img = np.array(img, dtype=np.float32) # convert to single.
     if len(img.shape) == 2:
@@ -54,6 +55,34 @@ def preprocess(img):
     return img
 
 
+class LMDBImageSet(object):
+    def __init__(self, lmdb_env):
+        self.lmdb_env = lmdb_env
+        lmdb_txn = lmdb_env.begin()
+        lmdb_cursor = lmdb_txn.cursor()
+        self.length = len([1 for _ in lmdb_cursor])
+        self.datum = caffe.proto.caffe_pb2.Datum()
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, k):
+        assert k >= 0 and k < self.length
+        assert type(k) == int
+        count = 0
+        lmdb_txn = self.lmdb_env.begin()
+        lmdb_cursor = lmdb_txn.cursor()
+        for key, value in lmdb_cursor:
+            if count == k:
+                self.datum.ParseFromString(value)
+                img = caffe.io.datum_to_array(self.datum).astype(np.float32)
+                img = preprocess(img)
+                label = self.datum.label
+                return (img, label)
+            count += 1
+        assert False
+
+
 def load_lmdb(path):
     '''
     given the path to imdb data. return (images, labels) pair.
@@ -61,37 +90,29 @@ def load_lmdb(path):
     not feasible for large datasets.
     '''
     lmdb_env = lmdb.open(path)
-    lmdb_txn = lmdb_env.begin()
-    lmdb_cursor = lmdb_txn.cursor()
-    datum = caffe.proto.caffe_pb2.Datum()
     data_list = []
     data_label = []
-    for key, value in lmdb_cursor:
-        datum.ParseFromString(value)
-        img = caffe.io.datum_to_array(datum).astype(np.float32)
-        img = preprocess(img)
-        data_label.append(datum.label)
-        data_list.append(img)
-    return (data_list, data_label)
+    imageset = LMDBImageSet(lmdb_env)
+    return imageset
 
 
 if not os.environ.get('SKIP_TRAINING_DATA'):
     with Timer('loading training data'):
-        (train_list, train_label) = load_lmdb(DATA_PATH + '/train10.lmdb')
+        train_set = load_lmdb(DATA_PATH + '/train10.lmdb')
 
 
 if not os.environ.get('SKIP_TEST_DATA'):
     with Timer('loading test data'):
-        (test_list, test_label) = load_lmdb(DATA_PATH + '/test10.lmdb')
-        print test_list[0]
+        test_set = load_lmdb(DATA_PATH + '/test10.lmdb')
 
 
-def sample_minibatch(train_list, batch_size):
+def sample_minibatch(train_set, batch_size):
     minibatch_list = choice(train_list, batch_size)
     im_input = np.zeros((batch_size, 3, th, tw))
-    for (pi, img) in enumerate(minibatch_list):
+    for (pi, (img, label)) in enumerate(minibatch_list):
         im_input[pi, :, :, :] = img
     return im_input
+
 
 def sparsity(blob_data):
     return float(np.sum(np.abs(blob_data) > 0)) / np.prod(blob_data.shape)
