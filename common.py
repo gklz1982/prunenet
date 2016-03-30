@@ -63,6 +63,13 @@ class LMDBImageSet(object):
         lmdb_cursor = lmdb_txn.cursor()
         self.length = len([1 for _ in lmdb_cursor])
         self.datum = caffe.proto.caffe_pb2.Datum()
+        # go through lmdb keys.
+        self.keys = []
+        lmdb_txn = self.lmdb_env.begin()
+        lmdb_cursor = lmdb_txn.cursor()
+        for key, _ in lmdb_cursor:
+            self.keys.append(key)
+
 
     def __len__(self):
         return self.length
@@ -72,16 +79,13 @@ class LMDBImageSet(object):
         assert type(k) == int
         count = 0
         lmdb_txn = self.lmdb_env.begin()
-        lmdb_cursor = lmdb_txn.cursor()
-        for key, value in lmdb_cursor:
-            if count == k:
-                self.datum.ParseFromString(value)
-                img = caffe.io.datum_to_array(self.datum).astype(np.float32)
-                img = preprocess(img)
-                label = self.datum.label
-                return (img, label)
-            count += 1
-        assert False
+        key = self.keys[k]
+        value = lmdb_txn.get(key)
+        self.datum.ParseFromString(value)
+        img = caffe.io.datum_to_array(self.datum).astype(np.float32)
+        img = preprocess(img)
+        label = self.datum.label
+        return (img, label)
 
 
 def load_lmdb(path):
