@@ -14,9 +14,10 @@ import theano.tensor as T
 from theano.tensor.signal.downsample import max_pool_2d
 from optimizers import Adam
 from common import *
+from theano.tensor.nnet.abstract_conv import bilinear_kernel_2D
 
 batch_size = 32
-RESULT_NAME = 'conv1.model'
+RESULT_NAME = 'conv1-stride.model'
 
 npr.seed(0)
 
@@ -43,7 +44,7 @@ with Timer('create tensor network'):
     filter_size = (6, 6) # down-sampled (11, 11)
     input_dim = 3
     output_dim = 96
-    stride = 2 # down-sampled (4, 4)
+    stride = 4 # down-sampled (4, 4)
 
     eps = np.float32(1.) # hinge-loss parameter.
     lam = np.float32(1.) # sparsity penalty.
@@ -66,8 +67,12 @@ with Timer('create tensor network'):
                                                int(np.ceil(im_input.shape[2] / 2.)),
                                                int(np.ceil(im_input.shape[3] / 2.))
                                                ),
-                                  filter_shape=(output_dim, input_dim) + filter_size) \
-        + b.dimshuffle('x', 0, 'x', 'x')
+                                  filter_shape=(output_dim, input_dim) + filter_size)
+    conv_out = T.nnet.abstract_conv.bilinear_upsampling(conv_out, ratio=2,
+                                                        batch_size=batch_size,
+                                                        num_input_channels=output_dim,
+                                                        use_1D_kernel=False)
+    conv_out += b.dimshuffle('x', 0, 'x', 'x')
     print 'target shape', im_target.shape[2], im_target.shape[3]
     conv_out = conv_out[:, :, :im_target.shape[2], :im_target.shape[3]]
 
