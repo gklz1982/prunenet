@@ -1,5 +1,6 @@
 import os
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import dill as pickle
 import caffe
@@ -11,6 +12,7 @@ from theano.tensor.nnet import conv2d
 import theano
 import theano.tensor as T
 from theano.tensor.signal.downsample import max_pool_2d
+from theano.tensor.nnet.abstract_conv import bilinear_kernel_2D # requires theano 0.8
 from optimizers import Adam
 import lmdb
 import caffe.proto.caffe_pb2
