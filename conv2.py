@@ -97,7 +97,7 @@ with Timer('create tensor network'):
     with Timer('compiling bprop function'):
         bprop = theano.function(inputs=[inputs, targets], outputs=loss, updates=updates)
 
-    num_iter = 4000
+    num_iter = 4
 
 
     sparsity_history = []
@@ -147,7 +147,7 @@ with open('%(name)s-%(layer_name)s.model'
     with Timer('dumping model to %s' % RESULT_NAME):
         pickle.dump({
             'conv': conv,
-            'bprop': bprop,
+            #'bprop': bprop,
             'W': W.get_value(),
             'b': b.get_value(),
             'trueW': net.params[layer_name][0].data,

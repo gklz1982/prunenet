@@ -1,20 +1,6 @@
 # experiment script.
 # prune conv1.
-import matplotlib
-import dill as pickle
-matplotlib.use('Agg')
-import caffe
-from caffe.io import oversample, resize_image
-from scipy.misc import imresize
-from PIL import Image
-from utils import *
-from theano.tensor.nnet import conv2d
-import theano
-import theano.tensor as T
-from theano.tensor.signal.downsample import max_pool_2d
-from optimizers import Adam
 from common import *
-from theano.tensor.nnet.abstract_conv import bilinear_kernel_2D
 
 batch_size = 32
 RESULT_NAME = 'conv1-stride.model'
