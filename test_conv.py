@@ -1,4 +1,3 @@
-# merge conv1 into the network and get *training*, *test* accuracy.
 import os
 os.environ['SKIP_TRAINING_DATA'] = ' ' # skip training data.
 from common import *
@@ -48,13 +47,15 @@ for di_offset in range(0, len(dataset), batch_size):
         labels[di] = label
 
     #  compute true target.
+    blob_names = net.blobs.keys()
+
     net.blobs['data'].data[:] = im_input
     net.forward(end=layer)
 
-    prev_layer_index =  list(net._layer_names).index(layer) - 1
-    prev_layer = list(net._layer_names)[prev_layer_index]
-    print '[prev_layer]', prev_layer
-    im_bottom = net.blobs[prev_layer].data
+    prev_blob_index =  blob_names.index(layer) - 1
+    prev_blob = blob_names[prev_blob_index]
+    print '[prev_blob]', prev_blob
+    im_bottom = net.blobs[prev_blob].data
 
     target = net.blobs[layer].data[:]
     print 'true sparsity', sparsity(sign(target))
@@ -63,13 +64,12 @@ for di_offset in range(0, len(dataset), batch_size):
     mask = sign(prunenet['conv'](im_bottom))
     print 'mask sparsity', sparsity(mask)
 
-    stats_fn = np.sum(mask * (1 - sign(target))) / float(np.prod(mask.shape))
-    print 'false negative', stats_fn
-    stats_fp = np.sum((1 - mask) * (sign(target))) / float(np.prod(mask.shape))
+    stats_fp = np.sum(mask * (1 - sign(target))) / float(np.prod(mask.shape))
     print 'false positive', stats_fp
+    stats_fn = np.sum((1 - mask) * (sign(target))) / float(np.prod(mask.shape))
+    print 'false negative', stats_fn
 
     # compute masked layer.
-    print target * mask
     net.blobs[layer].data[:] =  target * mask
 
     # compute final output.
