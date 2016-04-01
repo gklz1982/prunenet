@@ -1,13 +1,13 @@
 # experiment script.
-# prune conv2.
+# prune conv5.
 from common import *
 
 batch_size = 32
 RESULT_NAME = 'stride'
 
-layer_name = 'conv2'
-bottom_blob = 'norm1'
-top_blob = 'conv2'
+layer_name = 'conv5'
+bottom_blob = 'conv4'
+top_blob = 'conv5'
 
 
 npr.seed(0)
@@ -33,13 +33,13 @@ with Timer('full forward'):
 # training.
 
 with Timer('create tensor network'):
-    filter_size = (3, 3) # down-sampled (11, 11)
-    input_dim = 96
+    filter_size = (1, 1)
+    input_dim = 384
     output_dim = 256
     stride = 1
-    pad = 2
+    pad = 1
 
-    drop_factor = 2
+    drop_factor = 3
 
     eps = np.float32(1.) # hinge-loss parameter.
     lam = np.float32(1.) # sparsity penalty.
@@ -132,11 +132,10 @@ with Timer('create tensor network'):
 
                 stats_sparsity = sparsity(np.maximum(0, target))
                 print 'sparsity', stats_sparsity
-                stats_fp = np.sum(sign(im_target) * (1 - sign(target))) / float(np.prod(im_target.shape))
-                print 'false positive', stats_fp
-                print
-                stats_fn = np.sum(sign(1 - im_target) * (sign(target))) / float(np.prod(im_target.shape))
+                stats_fn = np.sum(sign(im_target) * (1 - sign(target))) / float(np.prod(im_target.shape))
                 print 'false negative', stats_fn
+                stats_fp = np.sum(sign(1 - im_target) * (sign(target))) / float(np.prod(im_target.shape))
+                print 'false positive', stats_fp
 
                 sparsity_history.append(stats_sparsity)
                 fp_history.append(stats_fn)

@@ -1,13 +1,13 @@
 # experiment script.
-# prune conv2.
+# prune conv3.
 from common import *
 
 batch_size = 32
 RESULT_NAME = 'stride'
 
-layer_name = 'conv2'
-bottom_blob = 'norm1'
-top_blob = 'conv2'
+layer_name = 'conv3'
+bottom_blob = 'norm2'
+top_blob = 'conv3'
 
 
 npr.seed(0)
@@ -33,13 +33,13 @@ with Timer('full forward'):
 # training.
 
 with Timer('create tensor network'):
-    filter_size = (3, 3) # down-sampled (11, 11)
-    input_dim = 96
-    output_dim = 256
+    filter_size = (1, 1)
+    input_dim = 256
+    output_dim = 384
     stride = 1
-    pad = 2
+    pad = 1
 
-    drop_factor = 2
+    drop_factor = 3
 
     eps = np.float32(1.) # hinge-loss parameter.
     lam = np.float32(1.) # sparsity penalty.
